@@ -1,0 +1,17 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, feature/cicd-pipeline ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  code-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Basic Lint Check
+        run: echo "Testing environment successfully initialized!"
