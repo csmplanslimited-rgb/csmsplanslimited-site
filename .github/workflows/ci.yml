@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ main, feature/html-validator ]
+    branches: [ main, feature/ai-reviewer ]
   pull_request:
     branches: [ main ]
 
@@ -16,10 +16,57 @@ jobs:
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
-          node-node-version: '20'
+          node-version: '20'
 
       - name: Install HTMLHint Linter
         run: npm install -g htmlhint
 
       - name: Run HTML Syntax Scan
         run: htmlhint "**/*.html"
+
+      - name: Run Gemini AI Code Review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const https = require('https');
+          
+          const htmlContent = fs.readFileSync('index.html', 'utf8');
+          const apiKey = process.env.GEMINI_API_KEY;
+          
+          const data = JSON.stringify({
+            contents: [{
+              parts: [{ text: 'Review this HTML landing page code for web development best practices, accessibility, and clean design. Provide 3 quick, constructive feedback points:\n\n' + htmlContent }]
+            }]
+          });
+          
+          const options = {
+            hostname: 'generativelanguage.googleapis.com',
+            path: '/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': data.length
+            }
+          };
+          
+          const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => body += chunk);
+            res.on('end', () => {
+              try {
+                const json = JSON.parse(body);
+                const text = json.candidates[0].content.parts[0].text;
+                console.log('\n=== 🧠 GEMINI AI CODE REVIEW ===\n');
+                console.log(text);
+                console.log('\n=================================\n');
+              } catch (e) {
+                console.log('Error parsing response:', body);
+              }
+            });
+          });
+          req.on('error', (e) => console.error(e));
+          req.write(data);
+          req.end();
+          "
